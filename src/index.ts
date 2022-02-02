@@ -10,3 +10,9 @@ export interface TokenStore {
   addToDenyList(sessionId: string, timestamp: number): boolean;
   isOnDenyList(sessionId: string): boolean;
 }
+
+export interface Token {
+  sessionId: string;
+  userId: string | number;
+  expirationTime: number;
+}
