@@ -33,6 +33,15 @@ export class Bouncer {
     return `${encodedToken}.${signature}`;
   }
 
+  verifyToken(unparsedToken: Base64String): boolean {
+    const { token, signature } = this.parseToken(unparsedToken);
+    const verifier = crypto.createVerify(ALGORITHM);
+    return verifier
+      .update(token)
+      .end()
+      .verify(this.publicKey, signature, SIGNATURE_ENCODING);
+  }
+
   private generateSessionId(): string {
     return crypto.randomUUID();
   }
@@ -50,6 +59,13 @@ export class Bouncer {
       .sign(this.privateKey, SIGNATURE_ENCODING);
   }
 
+  private parseToken(encodedToken: Base64String): ParsedToken {
+    const splitToken: Base64String[] = encodedToken.split(".");
+    return {
+      token: splitToken[0],
+      signature: splitToken[1],
+    };
+  }
 }
 
 export interface TokenStore {
