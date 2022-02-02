@@ -56,4 +56,5 @@
   "dependencies": {
     "@t-bowersox/base64": "^1.0.0"
   },
+  "type": "module"
 }
