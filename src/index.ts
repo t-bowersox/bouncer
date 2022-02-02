@@ -1,9 +1,19 @@
+import crypto, { KeyObject } from "crypto";
 export class Bouncer {
+  private privateKey: KeyObject;
+  private publicKey: KeyObject;
+
   constructor(
-    private privateKey: string,
-    private publicKey: string,
-    private tokenStore: TokenStore
-  ) {}
+    private tokenStore: TokenStore,
+    privateKey: string,
+    publicKey: string,
+    passphrase?: string
+  ) {
+    this.privateKey = passphrase
+      ? crypto.createPrivateKey({ key: privateKey, passphrase })
+      : crypto.createPrivateKey(privateKey);
+    this.publicKey = crypto.createPublicKey(publicKey);
+  }
 }
 
 export interface TokenStore {
