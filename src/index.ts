@@ -51,6 +51,11 @@ export class Bouncer {
     return Base64.encode(tokenJson);
   }
 
+  private decodeToken(encodedToken: Base64String): Token {
+    const tokenJson = Base64.decode(encodedToken);
+    return JSON.parse(tokenJson);
+  }
+
   private signToken(encodedToken: Base64String): Base64String {
     const signer = crypto.createSign(ALGORITHM);
     return signer
