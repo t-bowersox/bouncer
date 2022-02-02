@@ -10,14 +10,14 @@ export class Bouncer {
 
   constructor(
     private tokenStore: TokenStore,
-    privateKey: string,
-    publicKey: string,
+    privatePem: string,
+    publicPem: string,
     passphrase?: string
   ) {
     this.privateKey = passphrase
-      ? crypto.createPrivateKey({ key: privateKey, passphrase })
-      : crypto.createPrivateKey(privateKey);
-    this.publicKey = crypto.createPublicKey(publicKey);
+      ? crypto.createPrivateKey({ key: privatePem, passphrase })
+      : crypto.createPrivateKey(privatePem);
+    this.publicKey = crypto.createPublicKey(publicPem);
   }
 
   createToken(userId: string | number, expirationDate: Date): string {
