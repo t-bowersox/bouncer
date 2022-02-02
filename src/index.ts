@@ -33,7 +33,7 @@ export class Bouncer {
     return `${encodedToken}.${signature}`;
   }
 
-  verifyToken(unparsedToken: Base64String): boolean {
+  private verifyToken(unparsedToken: Base64String): boolean {
     const { token, signature } = this.parseToken(unparsedToken);
     const verifier = crypto.createVerify(ALGORITHM);
     return verifier
