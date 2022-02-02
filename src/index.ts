@@ -16,3 +16,5 @@ export interface Token {
   userId: string | number;
   expirationTime: number;
 }
+
+export type Base64String = string;
