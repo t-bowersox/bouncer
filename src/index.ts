@@ -17,4 +17,9 @@ export interface Token {
   expirationTime: number;
 }
 
+export interface ParsedToken {
+  token: Base64String;
+  signature: Base64String;
+}
+
 export type Base64String = string;
