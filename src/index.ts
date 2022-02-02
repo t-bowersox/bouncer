@@ -6,3 +6,7 @@ export class Bouncer {
   ) {}
 }
 
+export interface TokenStore {
+  addToDenyList(sessionId: string, timestamp: number): boolean;
+  isOnDenyList(sessionId: string): boolean;
+}
