@@ -50,7 +50,8 @@ export class Bouncer {
     if (decodedToken.expirationTime < Date.now()) {
       return false;
     }
-    return this.tokenStore.isOnDenyList(decodedToken.sessionId);
+    const denied = this.tokenStore.isOnDenyList(decodedToken.sessionId);
+    return !denied;
   }
 
   private verifyToken(token: Base64String, signature: Base64String): boolean {
