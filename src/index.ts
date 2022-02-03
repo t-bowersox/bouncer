@@ -33,7 +33,10 @@ export class Bouncer {
     return `${encodedToken}.${signature}`;
   }
 
-  private verifyToken(unparsedToken: Base64String): boolean {
+  revokeToken(sessionId: string): boolean {
+    return this.tokenStore.addToDenyList(sessionId, Date.now());
+  }
+
     const { token, signature } = this.parseToken(unparsedToken);
     const verifier = crypto.createVerify(ALGORITHM);
     return verifier
