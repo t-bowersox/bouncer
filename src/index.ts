@@ -37,7 +37,20 @@ export class Bouncer {
     return this.tokenStore.addToDenyList(sessionId, Date.now());
   }
 
+  validateToken(unparsedToken: Base64String): boolean {
     const { token, signature } = this.parseToken(unparsedToken);
+    const verified = this.verifyToken(token, signature);
+    if (!verified) {
+      return false;
+    }
+    const decodedToken = this.decodeToken(token);
+    if (decodedToken.expirationTime < Date.now()) {
+      return false;
+    }
+    return this.tokenStore.isOnDenyList(decodedToken.sessionId);
+  }
+
+  private verifyToken(token: Base64String, signature: Base64String): boolean {
     const verifier = crypto.createVerify(ALGORITHM);
     return verifier
       .update(token)
