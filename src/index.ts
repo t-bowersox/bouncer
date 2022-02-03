@@ -38,6 +38,9 @@ export class Bouncer {
   }
 
   validateToken(unparsedToken: Base64String): boolean {
+    if (!unparsedToken) {
+      return false;
+    }
     const { token, signature } = this.parseToken(unparsedToken);
     const verified = this.verifyToken(token, signature);
     if (!verified) {
