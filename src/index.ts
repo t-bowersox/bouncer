@@ -33,8 +33,13 @@ export class Bouncer {
     return `${encodedToken}.${signature}`;
   }
 
-  revokeToken(sessionId: string): boolean {
-    return this.tokenStore.addToDenyList(sessionId, Date.now());
+  revokeToken(unparsedToken: string): boolean {
+    if (!unparsedToken) {
+      return false;
+    }
+    const { token } = this.parseToken(unparsedToken);
+    const decodedToken = this.decodeToken(token);
+    return this.tokenStore.addToDenyList(decodedToken.sessionId, Date.now());
   }
 
   validateToken(unparsedToken: Base64String): boolean {
