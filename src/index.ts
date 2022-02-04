@@ -59,8 +59,10 @@ export class Bouncer {
     return !denied;
   }
 
-  async validateUser(user: object, rules: Ruleset): Promise<boolean> {
-    return rules.evaluateSync(user) && (await rules.evaluateAsync(user));
+  async validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {
+    return (
+      rules.evaluateSync(userData) && (await rules.evaluateAsync(userData))
+    );
   }
 
   private verifyToken(token: Base64String, signature: Base64String): boolean {
@@ -166,18 +168,18 @@ export class Ruleset {
     return this.asyncRules.clear();
   }
 
-  evaluateSync(user: object): boolean {
+  evaluateSync<T>(userData: T): boolean {
     for (const rule of this.syncRules) {
-      if (!rule(user)) {
+      if (!rule(userData)) {
         return false;
       }
     }
     return true;
   }
 
-  async evaluateAsync(user: object): Promise<boolean> {
+  async evaluateAsync<T>(userData: T): Promise<boolean> {
     for (const rule of this.asyncRules) {
-      const result = await rule(user);
+      const result = await rule(userData);
       if (!result) {
         return false;
       }
@@ -186,6 +188,6 @@ export class Ruleset {
   }
 }
 
-export type ValidationRule = (user: object) => boolean;
+export type ValidationRule<T = any> = (userData: T) => boolean;
 
-export type AsyncValidationRule = (user: object) => Promise<boolean>;
+export type AsyncValidationRule<T = any> = (userData: T) => Promise<boolean>;
