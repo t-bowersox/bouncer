@@ -54,6 +54,10 @@ export class Bouncer {
     return !denied;
   }
 
+  async validateUser(user: object, rules: Ruleset): Promise<boolean> {
+    return rules.evaluateSync(user) && (await rules.evaluateAsync(user));
+  }
+
   private verifyToken(token: Base64String, signature: Base64String): boolean {
     const verifier = crypto.createVerify(ALGORITHM);
     return verifier
