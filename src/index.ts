@@ -54,6 +54,10 @@ export class Bouncer {
     return !denied;
   }
 
+  async validateUser(user: object, rules: Ruleset): Promise<boolean> {
+    return rules.evaluateSync(user) && (await rules.evaluateAsync(user));
+  }
+
   private verifyToken(token: Base64String, signature: Base64String): boolean {
     const verifier = crypto.createVerify(ALGORITHM);
     return verifier
@@ -110,3 +114,73 @@ export interface ParsedToken {
 }
 
 export type Base64String = string;
+
+export class Ruleset {
+  private syncRules: Set<ValidationRule>;
+  private asyncRules: Set<AsyncValidationRule>;
+
+  constructor(
+    syncRules?: ValidationRule[],
+    asyncRules?: AsyncValidationRule[]
+  ) {
+    this.syncRules = new Set(syncRules);
+    this.asyncRules = new Set(asyncRules);
+  }
+
+  addSyncRule(rule: ValidationRule): Ruleset {
+    this.syncRules.add(rule);
+    return this;
+  }
+
+  addAsyncRule(rule: AsyncValidationRule): Ruleset {
+    this.asyncRules.add(rule);
+    return this;
+  }
+
+  hasSyncRule(rule: ValidationRule): boolean {
+    return this.syncRules.has(rule);
+  }
+
+  hasAsyncRule(rule: AsyncValidationRule): boolean {
+    return this.asyncRules.has(rule);
+  }
+
+  deleteSyncRule(rule: ValidationRule): boolean {
+    return this.syncRules.delete(rule);
+  }
+
+  deleteAsyncRule(rule: AsyncValidationRule): boolean {
+    return this.asyncRules.delete(rule);
+  }
+
+  clearSyncRules(): void {
+    return this.syncRules.clear();
+  }
+
+  clearAsyncRules(): void {
+    return this.asyncRules.clear();
+  }
+
+  evaluateSync(user: object): boolean {
+    for (const rule of this.syncRules) {
+      if (!rule(user)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  async evaluateAsync(user: object): Promise<boolean> {
+    for (const rule of this.asyncRules) {
+      const result = await rule(user);
+      if (!result) {
+        return false;
+      }
+    }
+    return true;
+  }
+}
+
+export type ValidationRule = (user: object) => boolean;
+
+export type AsyncValidationRule = (user: object) => Promise<boolean>;

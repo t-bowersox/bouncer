@@ -1,4 +1,4 @@
-import { Bouncer } from "./index";
+import { Bouncer, Ruleset } from "./index";
 import { jest } from "@jest/globals";
 import crypto from "crypto";
 import { Base64 } from "@t-bowersox/base64";
@@ -143,6 +143,55 @@ describe("Bouncer", () => {
       isOnDenyList.mockReturnValue(false);
 
       expect(bouncer.validateToken(unparsedToken)).toBe(true);
+    });
+  });
+
+  describe("#validateUser", () => {
+    const user = {
+      id: 1,
+      role: "regular",
+      permissions: { read: true, write: false },
+    };
+    const syncRuleTrue = (user: object) => user["permissions"]["read"] === true;
+    const syncRuleFalse = (user: object) => user["role"] === "admin";
+    const asyncRuleTrue = async (user: object) => {
+      return Promise.resolve(user["permissions"]["read"] === true);
+    };
+    const asyncRuleFalse = async (user: object) => {
+      return Promise.resolve(user["role"] === "admin");
+    };
+    let ruleset: Ruleset;
+
+    beforeEach(() => {
+      ruleset = new Ruleset();
+    });
+
+    test("returns false if a sync rule returns false", async () => {
+      ruleset.addSyncRule(syncRuleTrue).addSyncRule(syncRuleFalse);
+      expect(await bouncer.validateUser(user, ruleset)).toBe(false);
+    });
+
+    test("returns false if an async rule returns false", async () => {
+      ruleset
+        .addSyncRule(syncRuleTrue)
+        .addAsyncRule(asyncRuleTrue)
+        .addAsyncRule(asyncRuleFalse);
+      expect(await bouncer.validateUser(user, ruleset)).toBe(false);
+    });
+
+    test("returns true if sync & async rules return true", async () => {
+      ruleset.addSyncRule(syncRuleTrue).addAsyncRule(asyncRuleTrue);
+      expect(await bouncer.validateUser(user, ruleset)).toBe(true);
+    });
+
+    test("returns true if no async rules & sync rules return true", async () => {
+      ruleset.addSyncRule(syncRuleTrue);
+      expect(await bouncer.validateUser(user, ruleset)).toBe(true);
+    });
+
+    test("returns true if no sync rules & async rules return true", async () => {
+      ruleset.addAsyncRule(asyncRuleTrue);
+      expect(await bouncer.validateUser(user, ruleset)).toBe(true);
     });
   });
 });
