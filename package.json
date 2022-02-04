@@ -1,6 +1,6 @@
 {
   "name": "@t-bowersox/bouncer",
-  "description": "An app for checking user authorization.",
+  "description": "A tool for checking user authorization.",
   "version": "1.0.0",
   "repository": {
     "type": "git",
