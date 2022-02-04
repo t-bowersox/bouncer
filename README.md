@@ -24,6 +24,8 @@ In order to create a `Bouncer` instance, you must have the following:
 - A public key string in PEM format.
 - An object that implements the `TokenStore` interface.
 
+Need help generating keys? [This article](https://www.scottbrady91.com/openssl/creating-rsa-keys-using-openssl) provides a good explainer using OpenSSL.
+
 #### Token signing
 
 The private and public keys are necessary for signing and verifying access tokens. Under the hood, Bouncer uses the Node.js [`crypto.createPrivateKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreateprivatekeykey) and [`crypto.createPublicKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreatepublickeykey) methods to create a `KeyObject` for each.
