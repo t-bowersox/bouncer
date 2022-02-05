@@ -46,15 +46,14 @@ uses a cryptographic pseudorandom number generator.
 
 #### Token stores
 
-The `TokenStore` interface requires an object to have two methods that are used for tracking revoked tokens:
+The `TokenStore` interface requires an object to have the following methods, which are used for tracking revoked tokens:
 
+- `storeTokenData` - This is called by Bouncer when creating a token to store its session ID, user ID, and timestamp
+  values.
 - `addToDenyList` - This is called by Bouncer to add a session ID to the "Deny List", which is a list of revoked tokens.
 - `isOnDenyList` - This is called by Bouncer during token validation to see if a session ID has been revoked.
 
 It is up to you to handle where to store the data, whether it's a key-value store, relational database, etc.
-
-If you want to keep a dataset or log of all tokens issued by Bouncer, you will need to handle that yourself since it's
-outside the scope of what Bouncer's purpose.
 
 ### Authorization flow
 
@@ -65,14 +64,23 @@ import { Bouncer } from "@t-bowersox/bouncer";
 
 // This TokenStore implementation is just for demonstration
 const tokenStore = {
-  addToDenyList(sessionId: string, timestamp: number): boolean {
+  async storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean> {
     const database = new SomeDatabaseClass();
-    return database.insert(sessionId, timestamp);
+    return await database.insert(sessionId, userId, timestamp);
   },
 
-  isOnDenyList(sessionId: string): boolean {
+  async addToDenyList(sessionId: string, timestamp: number): Promise<boolean> {
     const database = new SomeDatabaseClass();
-    return database.get(sessionId);
+    return await database.insert(sessionId, timestamp);
+  },
+
+  async isOnDenyList(sessionId: string): Promise<boolean> {
+    const database = new SomeDatabaseClass();
+    return await database.get(sessionId);
   },
 };
 
@@ -107,12 +115,13 @@ In cases where you need to invalidate a session ID, you can call the `revokeToke
 to Bouncer's Deny List, which is a store of all revoked tokens. Bouncer checks this list during the token validation
 process.
 
-To add a token to the Deny List, pass it to `revokeToken`. It will return `true` if it was successful, `false` if not.
+To add a token to the Deny List, pass its session ID to `revokeToken`. You can retrieve these by querying the database
+you're using for the `TokenStore`'s `storeTokenData` function.
+
+`revokeToken` will return `true` if it was successful, `false` if not.
 
 ```typescript
-const revoked = bouncer.revokeToken(
-  "<base64-encoded-token>.<base64-encoded-signature>"
-);
+const revoked = bouncer.revokeToken("abcd-1234-efgh-5678");
 ```
 
 #### Validating a token
@@ -213,11 +222,14 @@ Parameters:
 
 #### Method `createToken`
 
-Creates a new access token.
+Creates a new access token and stores its data in the `TokenStore`.
 
 ```typescript
 class Bouncer {
-  createToken(userId: string | number, expirationDate: Date): string {}
+  async createToken(
+    userId: string | number,
+    expirationDate: Date
+  ): Promise<string> {}
 }
 ```
 
@@ -228,7 +240,7 @@ Parameters:
 
 Returns:
 
-- A dot-separated string containing the base64-encoded token and its base64-encoded signature (
+- A promise resolving to a dot-separated string containing the base64-encoded token and its base64-encoded signature (
   i.e. `<base64-encoded-token>.<base64-encoded-signature>`)
 
 #### Method `revokeToken`
@@ -237,7 +249,7 @@ Adds a token to the `TokenStore`'s Deny List.
 
 ```typescript
 class Bouncer {
-  revokeToken(unparsedToken: string): boolean {}
+  async revokeToken(unparsedToken: string): Promise<boolean> {}
 }
 ```
 
@@ -247,7 +259,7 @@ Parameters:
 
 Returns:
 
-- `true` if the token was successfully added to the Deny List, `false` if not.
+- A promise resolving to `true` if the token was successfully added to the Deny List, `false` if not.
 
 #### Method `validateToken`
 
@@ -255,7 +267,7 @@ Evaluates it a token is valid based on its signature, expiration date, and Deny 
 
 ```typescript
 class Bouncer {
-  validateToken(unparsedToken: Base64String): boolean {}
+  async validateToken(unparsedToken: Base64String): Promise<boolean> {}
 }
 ```
 
@@ -265,7 +277,7 @@ Parameters:
 
 Returns:
 
-- `true` if the token is valid, `false` if not.
+- A promise resolving to `true` if the token is valid, `false` if not.
 
 #### Method `validateUser`
 
@@ -273,7 +285,7 @@ Evaluates a user's attributes against a `RuleSet` to determine if the user meets
 
 ```typescript
 class Bouncer {
-  validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {}
+  async validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {}
 }
 ```
 
@@ -288,16 +300,46 @@ Returns:
 
 ### Interface `TokenStore`
 
-Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check
-for the existance of a token in that database.
+Contains async methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as
+check for the existance of a token in that database.
 
 ```typescript
 interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
+  storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean>;
 
-  isOnDenyList(sessionId: string): boolean;
+  addToDenyList(sessionId: string, timestamp: number): Promise<boolean>;
+
+  isOnDenyList(sessionId: string): Promise<boolean>;
 }
 ```
+
+#### Method `storeTokenData`
+
+Stores a token's session ID, user ID, and timestamp in a database.
+
+```typescript
+interface TokenStore {
+  storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean>;
+}
+```
+
+Parameters:
+
+- `sessionId`: the token's session ID generated by Bouncer.
+- `userId`: the token's user ID passed to the `createToken` method.
+- `timestamp`: the token's `expirationTime`, based on the date passed to the `createToken` method.
+
+Returns:
+
+- A promise resolving to `true` if the token data was saved successfully, `false` if not.
 
 #### Method `addToDenyList`
 
@@ -305,7 +347,7 @@ Stores the session ID and timestamp of a token in a database.
 
 ```typescript
 interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
+  addToDenyList(sessionId: string, timestamp: number): Promise<boolean>;
 }
 ```
 
@@ -316,7 +358,7 @@ Parameters:
 
 Returns:
 
-- `true` if the token was successfully saved, `false` if not.
+- A promise resolving to `true` if the token was successfully saved, `false` if not.
 
 #### Method `isOnDenyList`
 
@@ -324,7 +366,7 @@ Looks for the session ID of a token in a database.
 
 ```typescript
 interface TokenStore {
-  isOnDenyList(sessionId: string): boolean;
+  isOnDenyList(sessionId: string): Promise<boolean>;
 }
 ```
 
@@ -334,7 +376,7 @@ Parameters:
 
 Returns:
 
-- `true` if the token was found, `false` if not.
+- A promise resolving to `true` if the token was found, `false` if not.
 
 ### Type `Base64String`
 
