@@ -1,4 +1,4 @@
-import { Bouncer, Ruleset } from "./index";
+import { Bouncer, Ruleset, Token } from "./index";
 import { jest } from "@jest/globals";
 import crypto from "crypto";
 import { Base64 } from "@t-bowersox/base64";
@@ -46,14 +46,25 @@ describe("Bouncer", () => {
   });
 
   describe("#revokeToken", () => {
+    const token: Token = {
+      sessionId: uuid,
+      userId: 1,
+      expirationTime: Date.now(),
+    };
+    const tokenStr = `${Base64.encode(JSON.stringify(token))}.signature`;
+
     test("should return true if token is added to the Deny List", () => {
       addToDenyList.mockReturnValue(true);
-      expect(bouncer.revokeToken(uuid)).toBe(true);
+      expect(bouncer.revokeToken(tokenStr)).toBe(true);
     });
 
     test("should return false if token is not added to the Deny List", () => {
       addToDenyList.mockReturnValue(false);
-      expect(bouncer.revokeToken(uuid)).toBe(false);
+      expect(bouncer.revokeToken(tokenStr)).toBe(false);
+    });
+
+    test("should return false if passed an empty token", () => {
+      expect(bouncer.revokeToken("")).toBe(false);
     });
   });
 
