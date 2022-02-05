@@ -254,17 +254,6 @@ Returns:
 
 - A promise resolving to `true` if all rules in the set returned `true`, otherwise `false`.
 
-### Interface `TokenStore`
-
-Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
-
-```typescript
-interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
-  isOnDenyList(sessionId: string): boolean;
-}
-```
-
 #### Method `addToDenyList`
 
 Stores the session ID and timestamp of a token in a database.
@@ -297,6 +286,17 @@ Parameters:
 Returns:
 
 - `true` if the token was found, `false` if not.
+
+### Interface `TokenStore`
+
+Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
+
+```typescript
+interface TokenStore {
+  addToDenyList(sessionId: string, timestamp: number): boolean;
+  isOnDenyList(sessionId: string): boolean;
+}
+```
 
 ### Type `Base64String`
 
