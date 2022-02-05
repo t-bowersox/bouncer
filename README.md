@@ -62,8 +62,8 @@ const tokenStore = {
   isOnDenyList(sessionId: string): boolean {
     const database = new SomeDatabaseClass();
     return database.get(sessionId);
-  }
-}
+  },
+};
 
 // You'll most likely want to use env variables for the keys & passphrase
 const bouncer = new Bouncer(
@@ -193,7 +193,9 @@ Parameters:
 Creates a new access token.
 
 ```typescript
-createToken(userId: string | number, expirationDate: Date): string;
+class Bouncer {
+  createToken(userId: string | number, expirationDate: Date): string {}
+}
 ```
 
 Parameters:
@@ -210,7 +212,9 @@ Returns:
 Adds a token to the `TokenStore`'s Deny List.
 
 ```typescript
-revokeToken(unparsedToken: string): boolean;
+class Bouncer {
+  revokeToken(unparsedToken: string): boolean {}
+}
 ```
 
 Parameters:
@@ -226,7 +230,9 @@ Returns:
 Evaluates it a token is valid based on its signature, expiration date, and Deny List status.
 
 ```typescript
-validateToken(unparsedToken: Base64String): boolean;
+class Bouncer {
+  validateToken(unparsedToken: Base64String): boolean {}
+}
 ```
 
 Parameters:
@@ -242,7 +248,9 @@ Returns:
 Evaluates a user's attributes against a `RuleSet` to determine if the user meets the criteria for access.
 
 ```typescript
-validateUser<T>(userData: T, rules: Ruleset): Promise<boolean>;
+class Bouncer {
+  validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {}
+}
 ```
 
 Parameters:
@@ -254,12 +262,25 @@ Returns:
 
 - A promise resolving to `true` if all rules in the set returned `true`, otherwise `false`.
 
+### Interface `TokenStore`
+
+Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
+
+```typescript
+interface TokenStore {
+  addToDenyList(sessionId: string, timestamp: number): boolean;
+  isOnDenyList(sessionId: string): boolean;
+}
+```
+
 #### Method `addToDenyList`
 
 Stores the session ID and timestamp of a token in a database.
 
 ```typescript
-addToDenyList(sessionId: string, timestamp: number): boolean;
+interface TokenStore {
+  addToDenyList(sessionId: string, timestamp: number): boolean;
+}
 ```
 
 Parameters:
@@ -276,7 +297,9 @@ Returns:
 Looks for the session ID of a token in a database.
 
 ```typescript
-isOnDenyList(sessionId: string): boolean;
+interface TokenStore {
+  isOnDenyList(sessionId: string): boolean;
+}
 ```
 
 Parameters:
@@ -286,17 +309,6 @@ Parameters:
 Returns:
 
 - `true` if the token was found, `false` if not.
-
-### Interface `TokenStore`
-
-Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
-
-```typescript
-interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
-  isOnDenyList(sessionId: string): boolean;
-}
-```
 
 ### Type `Base64String`
 
@@ -310,7 +322,10 @@ type Base64String = string;
 
 ```typescript
 class RuleSet {
-  constructor(syncRules?: ValidationRule[], asyncRules?: AsyncValidationRule[]);
+  constructor(
+    syncRules?: ValidationRule[],
+    asyncRules?: AsyncValidationRule[]
+  ) {}
 }
 ```
 
@@ -324,7 +339,9 @@ Parameters:
 Adds a synchronous `ValidationRule` to the `RuleSet`.
 
 ```typescript
-addSyncRule(rule: ValidationRule): Ruleset;
+class RuleSet {
+  addSyncRule(rule: ValidationRule): Ruleset {}
+}
 ```
 
 Parameters:
@@ -340,7 +357,9 @@ Returns:
 Adds an `AsyncValidationRule` to the `RuleSet`.
 
 ```typescript
-addAsyncRule(rule: AsyncValidationRule): Ruleset;
+class Ruleset {
+  addAsyncRule(rule: AsyncValidationRule): Ruleset {}
+}
 ```
 
 Parameters:
@@ -356,7 +375,9 @@ Returns:
 Checks if the `RuleSet` contains a specific `ValidationRule`.
 
 ```typescript
-hasSyncRule(rule: ValidationRule): boolean;
+class RuleSet {
+  hasSyncRule(rule: ValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -372,7 +393,9 @@ Returns:
 Checks if the `RuleSet` contains a specific `AsyncValidationRule`.
 
 ```typescript
-hasAsyncRule(rule: AsyncValidationRule): boolean;
+class RuleSet {
+  hasAsyncRule(rule: AsyncValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -388,7 +411,9 @@ Returns:
 Deletes a `ValidationRule` from the `RuleSet`.
 
 ```typescript
-deleteSyncRule(rule: ValidationRule): boolean;
+class RuleSet {
+  deleteSyncRule(rule: ValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -404,7 +429,9 @@ Returns:
 Deletes an `AsyncValidationRule` from the `RuleSet`.
 
 ```typescript
-deleteAsyncRule(rule: AsyncValidationRule): boolean;
+class RuleSet {
+  deleteAsyncRule(rule: AsyncValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -420,7 +447,9 @@ Returns:
 Deletes all `ValidationRule`s from the `RuleSet`.
 
 ```typescript
-clearSyncRules(): void;
+class RuleSet {
+  clearSyncRules(): void {}
+}
 ```
 
 #### Method `clearAsyncRules`
@@ -428,7 +457,9 @@ clearSyncRules(): void;
 Deletes all `AsyncValidationRule`s from the `RuleSet`.
 
 ```typescript
-clearAsyncRules(): void;
+class RuleSet {
+  clearAsyncRules(): void {}
+}
 ```
 
 #### Method `evaluateSync`
@@ -436,7 +467,9 @@ clearAsyncRules(): void;
 Compares user data against the `RuleSet`'s internal set of `ValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
-evaluateSync<T>(userData: T): boolean;
+class RuleSet {
+  evaluateSync<T>(userData: T): boolean {}
+}
 ```
 
 Parameters:
@@ -452,7 +485,9 @@ Returns:
 Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
-evaluateAsync<T>(userData: T): Promise<boolean>;
+class RuleSet {
+  evaluateAsync<T>(userData: T): Promise<boolean> {}
+}
 ```
 
 Parameters:
