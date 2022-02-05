@@ -8,6 +8,10 @@ A tool for checking user authorization.
 npm i @t-bowersox/bouncer
 ```
 
+## Changelog
+
+See [release notes](https://github.com/t-bowersox/bouncer/releases).
+
 ## Usage
 
 Bouncer performs two primary sets of tasks:
