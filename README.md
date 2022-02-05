@@ -8,6 +8,10 @@ A tool for checking user authorization.
 npm i @t-bowersox/bouncer
 ```
 
+## Changelog
+
+See [release notes](https://github.com/t-bowersox/bouncer/releases).
+
 ## Usage
 
 Bouncer performs two primary sets of tasks:
@@ -24,26 +28,36 @@ In order to create a `Bouncer` instance, you must have the following:
 - A public key string in PEM format.
 - An object that implements the `TokenStore` interface.
 
-Need help generating keys? [This article](https://www.scottbrady91.com/openssl/creating-rsa-keys-using-openssl) provides a good explainer using OpenSSL.
+Need help generating keys? [This article](https://www.scottbrady91.com/openssl/creating-rsa-keys-using-openssl) provides
+a good explainer using OpenSSL.
 
 #### Token signing
 
-The private and public keys are necessary for signing and verifying access tokens. Under the hood, Bouncer uses the Node.js [`crypto.createPrivateKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreateprivatekeykey) and [`crypto.createPublicKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreatepublickeykey) methods to create a `KeyObject` for each.
+The private and public keys are necessary for signing and verifying access tokens. Under the hood, Bouncer uses the
+Node.js [`crypto.createPrivateKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreateprivatekeykey)
+and [`crypto.createPublicKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreatepublickeykey)
+methods to create a `KeyObject` for each.
 
-Those `KeyObject`s are used with instances of Node's [`Sign`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-sign) and [`Verify`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-verify) classes when signing and verifying access tokens, respectively. The algorithm used for signatures is SHA256.
+Those `KeyObject`s are used with instances of
+Node's [`Sign`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-sign)
+and [`Verify`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-verify) classes when signing and
+verifying access tokens, respectively. The algorithm used for signatures is SHA256.
 
-The `Token` interface stores only a unique session ID, the user's ID, and an expiration timestamp. The session ID is generated using Node's [`crypto.randomUUID`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptorandomuuidoptions), which uses a cryptographic pseudorandom number generator.
+The `Token` interface stores only a unique session ID, the user's ID, and an expiration timestamp. The session ID is
+generated using
+Node's [`crypto.randomUUID`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptorandomuuidoptions), which
+uses a cryptographic pseudorandom number generator.
 
 #### Token stores
 
-The `TokenStore` interface requires an object to have two methods that are used for tracking revoked tokens:
+The `TokenStore` interface requires an object to have the following methods, which are used for tracking revoked tokens:
 
+- `storeTokenData` - This is called by Bouncer when creating a token to store its session ID, user ID, and timestamp
+  values.
 - `addToDenyList` - This is called by Bouncer to add a session ID to the "Deny List", which is a list of revoked tokens.
 - `isOnDenyList` - This is called by Bouncer during token validation to see if a session ID has been revoked.
 
 It is up to you to handle where to store the data, whether it's a key-value store, relational database, etc.
-
-If you want to keep a dataset or log of all tokens issued by Bouncer, you will need to handle that yourself since it's outside the scope of what Bouncer's purpose.
 
 ### Authorization flow
 
@@ -54,16 +68,25 @@ import { Bouncer } from "@t-bowersox/bouncer";
 
 // This TokenStore implementation is just for demonstration
 const tokenStore = {
-  addToDenyList(sessionId: string, timestamp: number): boolean => {
+  async storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean> {
     const database = new SomeDatabaseClass();
-    return database.insert(sessionId, timestamp);
-  };
+    return await database.insert(sessionId, userId, timestamp);
+  },
 
-  isOnDenyList(sessionId: string): boolean => {
+  async addToDenyList(sessionId: string, timestamp: number): Promise<boolean> {
     const database = new SomeDatabaseClass();
-    return database.get(sessionId);
-  };
-}
+    return await database.insert(sessionId, timestamp);
+  },
+
+  async isOnDenyList(sessionId: string): Promise<boolean> {
+    const database = new SomeDatabaseClass();
+    return await database.get(sessionId);
+  },
+};
 
 // You'll most likely want to use env variables for the keys & passphrase
 const bouncer = new Bouncer(
@@ -81,7 +104,8 @@ An access token is a dot-separated string that includes:
 - The base64 encoded token.
 - The base64 encoded signature for that token.
 
-For example: `<base64-encoded-token>.<base64-encoded-signature>`. Being base64 encoded, it's suitable for returning to the user in a secure, HTTP-only cookie.
+For example: `<base64-encoded-token>.<base64-encoded-signature>`. Being base64 encoded, it's suitable for returning to
+the user in a secure, HTTP-only cookie.
 
 To create a token, pass the user's ID and an expiration date (as a `Date` object) to the `createToken` method.
 
@@ -91,25 +115,30 @@ const token = bouncer.createToken(1, new Date("2022-02-28 00:00:00"));
 
 #### Revoking an access token
 
-In cases where you need to invalidate a session ID, you can call the `revokeToken` method. This will add the session ID to Bouncer's Deny List, which is a store of all revoked tokens. Bouncer checks this list during the token validation process.
+In cases where you need to invalidate a session ID, you can call the `revokeToken` method. This will add the session ID
+to Bouncer's Deny List, which is a store of all revoked tokens. Bouncer checks this list during the token validation
+process.
 
-To add a token to the Deny List, pass it to `revokeToken`. It will return `true` if it was successful, `false` if not.
+To add a token to the Deny List, pass its session ID to `revokeToken`. You can retrieve these by querying the database
+you're using for the `TokenStore`'s `storeTokenData` function.
+
+`revokeToken` will return `true` if it was successful, `false` if not.
 
 ```typescript
-const revoked = bouncer.revokeToken(
-  "<base64-encoded-token>.<base64-encoded-signature>"
-);
+const revoked = bouncer.revokeToken("abcd-1234-efgh-5678");
 ```
 
 #### Validating a token
 
-To validate a token, simply pass it to the `validateToken` method. Bouncer will return a boolean response based on the following criteria:
+To validate a token, simply pass it to the `validateToken` method. Bouncer will return a boolean response based on the
+following criteria:
 
 1. Is the token's signature verified? If so, then check:
 2. Has the token expired? If not, then check:
 3. Is the token on the Deny List? If not, return `true`.
 
-Otherwise, Bouncer returns `false` indicating the token is invalid. That's a signal to your app to deny access to that user.
+Otherwise, Bouncer returns `false` indicating the token is invalid. That's a signal to your app to deny access to that
+user.
 
 ```typescript
 const validated = bouncer.validateToken(
@@ -119,18 +148,24 @@ const validated = bouncer.validateToken(
 
 #### Validating a user
 
-Bouncer's `validateUser` method allows you to compare a user's attributes to a `RuleSet` of validator functions. Each of the functions you add to a `RuleSet` take a value and, based on your criteria, returns a boolean: `true` if validated, `false` if not.
+Bouncer's `validateUser` method allows you to compare a user's attributes to a `RuleSet` of validator functions. Each of
+the functions you add to a `RuleSet` take a value and, based on your criteria, returns a boolean: `true` if
+validated, `false` if not.
 
-Each `RuleSet` keeps two internal sets of functions: one for synchronous functions and the other for async functions. All functions in the sets must return true in order for Bouncer's `validateUser` method to return `true`. If just one returns `false`, then so will `validateUser`.
+Each `RuleSet` keeps two internal sets of functions: one for synchronous functions and the other for async functions.
+All functions in the sets must return true in order for Bouncer's `validateUser` method to return `true`. If just one
+returns `false`, then so will `validateUser`.
 
 ```typescript
 type ValidationRule<T = any> = (userData: T) => boolean;
 type AsyncValidationRule<T = any> = (userData: T) => Promise<boolean>;
 ```
 
-To avoid unnecessary async calls, Bouncer will first evaluate the synchronous validators if present. Only if all of those return `true` will it proceed to the async validators.
+To avoid unnecessary async calls, Bouncer will first evaluate the synchronous validators if present. Only if all of
+those return `true` will it proceed to the async validators.
 
-You can create as many instances of the `RuleSet` class as you need for your application. For example, you could have `RuleSet`s for different user types, different application routes, etc.
+You can create as many instances of the `RuleSet` class as you need for your application. For example, you could
+have `RuleSet`s for different user types, different application routes, etc.
 
 ```typescript
 import { Bouncer, RuleSet } from "@t-bowersox/bouncer";
@@ -151,11 +186,11 @@ const asyncRuleExample = async (user: User): Promise<boolean> => {
   return !!result;
 };
 
-const ruleSet = new RuleSet([syncRuleExample], [asyncRuleExample]);
+let ruleSet = new RuleSet([syncRuleExample], [asyncRuleExample]);
 
 // Or...
 
-const ruleSet = new RuleSet()
+ruleSet = new RuleSet()
   .addSyncRule(syncRuleExample)
   .addAsyncRule(asyncRuleExample);
 
@@ -177,23 +212,29 @@ class Bouncer {
     privatePem: string,
     publicPem: string,
     passphrase?: string
-  );
+  ) {}
 }
 ```
 
 Parameters:
 
-- `tokenStore`: an object implementing the `TokenStore` interface, used for adding to and checking the Deny List of tokens.
+- `tokenStore`: an object implementing the `TokenStore` interface, used for adding to and checking the Deny List of
+  tokens.
 - `privatePem`: a string containing a private key in PEM format, used for signing tokens.
 - `publicPem`: a string containing the correspondnig public key in PEM format, used for verifying tokens.
 - `passphrase`: if the private key was encrypted with a passphrase, pass it to this parameter.
 
 #### Method `createToken`
 
-Creates a new access token.
+Creates a new access token and stores its data in the `TokenStore`.
 
 ```typescript
-createToken(userId: string | number, expirationDate: Date): string;
+class Bouncer {
+  async createToken(
+    userId: string | number,
+    expirationDate: Date
+  ): Promise<string> {}
+}
 ```
 
 Parameters:
@@ -203,14 +244,17 @@ Parameters:
 
 Returns:
 
-- A dot-separated string containing the base64-encoded token and its base64-encoded signature (i.e. `<base64-encoded-token>.<base64-encoded-signature>`)
+- A promise resolving to a dot-separated string containing the base64-encoded token and its base64-encoded signature (
+  i.e. `<base64-encoded-token>.<base64-encoded-signature>`)
 
 #### Method `revokeToken`
 
 Adds a token to the `TokenStore`'s Deny List.
 
 ```typescript
-revokeToken(unparsedToken: string): boolean;
+class Bouncer {
+  async revokeToken(unparsedToken: string): Promise<boolean> {}
+}
 ```
 
 Parameters:
@@ -219,14 +263,16 @@ Parameters:
 
 Returns:
 
-- `true` if the token was successfully added to the Deny List, `false` if not.
+- A promise resolving to `true` if the token was successfully added to the Deny List, `false` if not.
 
 #### Method `validateToken`
 
 Evaluates it a token is valid based on its signature, expiration date, and Deny List status.
 
 ```typescript
-validateToken(unparsedToken: Base64String): boolean;
+class Bouncer {
+  async validateToken(unparsedToken: Base64String): Promise<boolean> {}
+}
 ```
 
 Parameters:
@@ -235,14 +281,16 @@ Parameters:
 
 Returns:
 
-- `true` if the token is valid, `false` if not.
+- A promise resolving to `true` if the token is valid, `false` if not.
 
 #### Method `validateUser`
 
 Evaluates a user's attributes against a `RuleSet` to determine if the user meets the criteria for access.
 
 ```typescript
-validateUser<T>(userData: T, rules: Ruleset): Promise<boolean>;
+class Bouncer {
+  async validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {}
+}
 ```
 
 Parameters:
@@ -254,12 +302,57 @@ Returns:
 
 - A promise resolving to `true` if all rules in the set returned `true`, otherwise `false`.
 
+### Interface `TokenStore`
+
+Contains async methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as
+check for the existance of a token in that database.
+
+```typescript
+interface TokenStore {
+  storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean>;
+
+  addToDenyList(sessionId: string, timestamp: number): Promise<boolean>;
+
+  isOnDenyList(sessionId: string): Promise<boolean>;
+}
+```
+
+#### Method `storeTokenData`
+
+Stores a token's session ID, user ID, and timestamp in a database.
+
+```typescript
+interface TokenStore {
+  storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean>;
+}
+```
+
+Parameters:
+
+- `sessionId`: the token's session ID generated by Bouncer.
+- `userId`: the token's user ID passed to the `createToken` method.
+- `timestamp`: the token's `expirationTime`, based on the date passed to the `createToken` method.
+
+Returns:
+
+- A promise resolving to `true` if the token data was saved successfully, `false` if not.
+
 #### Method `addToDenyList`
 
 Stores the session ID and timestamp of a token in a database.
 
 ```typescript
-addToDenyList(sessionId: string, timestamp: number): boolean;
+interface TokenStore {
+  addToDenyList(sessionId: string, timestamp: number): Promise<boolean>;
+}
 ```
 
 Parameters:
@@ -269,14 +362,16 @@ Parameters:
 
 Returns:
 
-- `true` if the token was successfully saved, `false` if not.
+- A promise resolving to `true` if the token was successfully saved, `false` if not.
 
 #### Method `isOnDenyList`
 
 Looks for the session ID of a token in a database.
 
 ```typescript
-isOnDenyList(sessionId: string): boolean;
+interface TokenStore {
+  isOnDenyList(sessionId: string): Promise<boolean>;
+}
 ```
 
 Parameters:
@@ -285,16 +380,17 @@ Parameters:
 
 Returns:
 
-- `true` if the token was found, `false` if not.
+- A promise resolving to `true` if the token was found, `false` if not.
 
-### Interface `TokenStore`
+### Interface `Token`
 
-Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
+An access token. This is encoded to JSON then to base64 before it is returned by `createToken`.
 
 ```typescript
-interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
-  isOnDenyList(sessionId: string): boolean;
+interface Token {
+  sessionId: string;
+  userId: string | number;
+  expirationTime: number;
 }
 ```
 
@@ -310,7 +406,10 @@ type Base64String = string;
 
 ```typescript
 class RuleSet {
-  constructor(syncRules?: ValidationRule[], asyncRules?: AsyncValidationRule[]);
+  constructor(
+    syncRules?: ValidationRule[],
+    asyncRules?: AsyncValidationRule[]
+  ) {}
 }
 ```
 
@@ -324,7 +423,9 @@ Parameters:
 Adds a synchronous `ValidationRule` to the `RuleSet`.
 
 ```typescript
-addSyncRule(rule: ValidationRule): Ruleset;
+class RuleSet {
+  addSyncRule(rule: ValidationRule): Ruleset {}
+}
 ```
 
 Parameters:
@@ -340,7 +441,9 @@ Returns:
 Adds an `AsyncValidationRule` to the `RuleSet`.
 
 ```typescript
-addAsyncRule(rule: AsyncValidationRule): Ruleset;
+class Ruleset {
+  addAsyncRule(rule: AsyncValidationRule): Ruleset {}
+}
 ```
 
 Parameters:
@@ -356,7 +459,9 @@ Returns:
 Checks if the `RuleSet` contains a specific `ValidationRule`.
 
 ```typescript
-hasSyncRule(rule: ValidationRule): boolean;
+class RuleSet {
+  hasSyncRule(rule: ValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -372,7 +477,9 @@ Returns:
 Checks if the `RuleSet` contains a specific `AsyncValidationRule`.
 
 ```typescript
-hasAsyncRule(rule: AsyncValidationRule): boolean;
+class RuleSet {
+  hasAsyncRule(rule: AsyncValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -388,7 +495,9 @@ Returns:
 Deletes a `ValidationRule` from the `RuleSet`.
 
 ```typescript
-deleteSyncRule(rule: ValidationRule): boolean;
+class RuleSet {
+  deleteSyncRule(rule: ValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -404,7 +513,9 @@ Returns:
 Deletes an `AsyncValidationRule` from the `RuleSet`.
 
 ```typescript
-deleteAsyncRule(rule: AsyncValidationRule): boolean;
+class RuleSet {
+  deleteAsyncRule(rule: AsyncValidationRule): boolean {}
+}
 ```
 
 Parameters:
@@ -420,7 +531,9 @@ Returns:
 Deletes all `ValidationRule`s from the `RuleSet`.
 
 ```typescript
-clearSyncRules(): void;
+class RuleSet {
+  clearSyncRules(): void {}
+}
 ```
 
 #### Method `clearAsyncRules`
@@ -428,15 +541,20 @@ clearSyncRules(): void;
 Deletes all `AsyncValidationRule`s from the `RuleSet`.
 
 ```typescript
-clearAsyncRules(): void;
+class RuleSet {
+  clearAsyncRules(): void {}
+}
 ```
 
 #### Method `evaluateSync`
 
-Compares user data against the `RuleSet`'s internal set of `ValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
+Compares user data against the `RuleSet`'s internal set of `ValidationRule`s. This normally should not be called
+directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
-evaluateSync<T>(userData: T): boolean;
+class RuleSet {
+  evaluateSync<T>(userData: T): boolean {}
+}
 ```
 
 Parameters:
@@ -449,10 +567,13 @@ Returns:
 
 #### Method `evaluateAsync`
 
-Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
+Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s. This normally should not be called
+directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
-evaluateAsync<T>(userData: T): Promise<boolean>;
+class RuleSet {
+  evaluateAsync<T>(userData: T): Promise<boolean> {}
+}
 ```
 
 Parameters:
@@ -497,7 +618,8 @@ Returns:
 
 ## Contributing
 
-This is primarily a package that I intend to reuse in my own projects. I've decided to open source it in case there are other folks who might also find it useful.
+This is primarily a package that I intend to reuse in my own projects. I've decided to open source it in case there are
+other folks who might also find it useful.
 
 With that in mind, I only expect to make changes to Container that jibe with how I intend to use it myself.
 
