@@ -171,8 +171,8 @@ export interface ParsedToken {
 export type Base64String = string;
 
 export class Ruleset {
-  private syncRules: Set<ValidationRule>;
-  private asyncRules: Set<AsyncValidationRule>;
+  private readonly syncRules: Set<ValidationRule>;
+  private readonly asyncRules: Set<AsyncValidationRule>;
 
   constructor(
     syncRules?: ValidationRule[],
