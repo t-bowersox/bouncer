@@ -177,7 +177,7 @@ class Bouncer {
     privatePem: string,
     publicPem: string,
     passphrase?: string
-  );
+  ) {}
 }
 ```
 
