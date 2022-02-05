@@ -382,6 +382,18 @@ Returns:
 
 - A promise resolving to `true` if the token was found, `false` if not.
 
+### Interface `Token`
+
+An access token. This is encoded to JSON then to base64 before it is returned by `createToken`.
+
+```typescript
+interface Token {
+  sessionId: string;
+  userId: string | number;
+  expirationTime: number;
+}
+```
+
 ### Type `Base64String`
 
 Indicates a string has been base64-encoded.
