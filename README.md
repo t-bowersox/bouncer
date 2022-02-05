@@ -54,15 +54,15 @@ import { Bouncer } from "@t-bowersox/bouncer";
 
 // This TokenStore implementation is just for demonstration
 const tokenStore = {
-  addToDenyList(sessionId: string, timestamp: number): boolean => {
+  addToDenyList(sessionId: string, timestamp: number): boolean {
     const database = new SomeDatabaseClass();
     return database.insert(sessionId, timestamp);
-  };
+  },
 
-  isOnDenyList(sessionId: string): boolean => {
+  isOnDenyList(sessionId: string): boolean {
     const database = new SomeDatabaseClass();
     return database.get(sessionId);
-  };
+  }
 }
 
 // You'll most likely want to use env variables for the keys & passphrase
