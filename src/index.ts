@@ -1,3 +1,5 @@
+// noinspection JSMethodCanBeStatic
+
 import crypto, { KeyObject } from "crypto";
 import { Base64 } from "@t-bowersox/base64";
 
@@ -5,8 +7,8 @@ const ALGORITHM = "sha256";
 const SIGNATURE_ENCODING = "base64";
 
 export class Bouncer {
-  private privateKey: KeyObject;
-  private publicKey: KeyObject;
+  private readonly privateKey: KeyObject;
+  private readonly publicKey: KeyObject;
 
   constructor(
     private tokenStore: TokenStore,
@@ -25,8 +27,12 @@ export class Bouncer {
    * @param userId The unique ID for a user.
    * @param expirationDate The date the token should expire.
    * @returns A dot-separated string containing the base64-encoded token and its base64-encoded signature.
+   * @throws `BouncerError` if unable to store the token in the `TokenStore`.
    */
-  createToken(userId: string | number, expirationDate: Date): string {
+  async createToken(
+    userId: string | number,
+    expirationDate: Date
+  ): Promise<string> {
     const sessionId = this.generateSessionId();
     const expirationTime = expirationDate.getTime();
     const token: Token = {
@@ -34,6 +40,14 @@ export class Bouncer {
       userId,
       expirationTime,
     };
+    const stored = await this.tokenStore.storeTokenData(
+      token.sessionId,
+      token.userId,
+      token.expirationTime
+    );
+    if (!stored) {
+      throw new BouncerError("Failed to store token data.");
+    }
     const encodedToken = this.encodeToken(token);
     const signature = this.signToken(encodedToken);
     return `${encodedToken}.${signature}`;
@@ -44,13 +58,16 @@ export class Bouncer {
    * @param unparsedToken The base64-encoded string returned by `createToken`.
    * @returns `true` if the token was successfully added to the Deny List, `false` if not.
    */
-  revokeToken(unparsedToken: string): boolean {
+  async revokeToken(unparsedToken: string): Promise<boolean> {
     if (!unparsedToken) {
       return false;
     }
     const { token } = this.parseToken(unparsedToken);
     const decodedToken = this.decodeToken(token);
-    return this.tokenStore.addToDenyList(decodedToken.sessionId, Date.now());
+    return await this.tokenStore.addToDenyList(
+      decodedToken.sessionId,
+      Date.now()
+    );
   }
 
   /**
@@ -58,7 +75,7 @@ export class Bouncer {
    * @param unparsedToken The string returned from `createToken`.
    * @returns `true` if the token is valid, `false` if not.
    */
-  validateToken(unparsedToken: Base64String): boolean {
+  async validateToken(unparsedToken: Base64String): Promise<boolean> {
     if (!unparsedToken) {
       return false;
     }
@@ -71,7 +88,7 @@ export class Bouncer {
     if (decodedToken.expirationTime < Date.now()) {
       return false;
     }
-    const denied = this.tokenStore.isOnDenyList(decodedToken.sessionId);
+    const denied = await this.tokenStore.isOnDenyList(decodedToken.sessionId);
     return !denied;
   }
 
@@ -126,9 +143,20 @@ export class Bouncer {
   }
 }
 
+export class BouncerError extends Error {
+  name = "BouncerError";
+}
+
 export interface TokenStore {
-  addToDenyList(sessionId: string, timestamp: number): boolean;
-  isOnDenyList(sessionId: string): boolean;
+  storeTokenData(
+    sessionId: string,
+    userId: string | number,
+    timestamp: number
+  ): Promise<boolean>;
+
+  addToDenyList(sessionId: string, timestamp: number): Promise<boolean>;
+
+  isOnDenyList(sessionId: string): Promise<boolean>;
 }
 
 export interface Token {
@@ -145,8 +173,8 @@ export interface ParsedToken {
 export type Base64String = string;
 
 export class Ruleset {
-  private syncRules: Set<ValidationRule>;
-  private asyncRules: Set<AsyncValidationRule>;
+  private readonly syncRules: Set<ValidationRule>;
+  private readonly asyncRules: Set<AsyncValidationRule>;
 
   constructor(
     syncRules?: ValidationRule[],
