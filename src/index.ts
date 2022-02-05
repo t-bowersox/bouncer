@@ -126,6 +126,10 @@ export class Bouncer {
   }
 }
 
+export class BouncerError extends Error {
+  name = "BouncerError";
+}
+
 export interface TokenStore {
   addToDenyList(sessionId: string, timestamp: number): boolean;
   isOnDenyList(sessionId: string): boolean;
