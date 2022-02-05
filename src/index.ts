@@ -1,3 +1,5 @@
+// noinspection JSMethodCanBeStatic
+
 import crypto, { KeyObject } from "crypto";
 import { Base64 } from "@t-bowersox/base64";
 
