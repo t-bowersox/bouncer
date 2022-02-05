@@ -20,6 +20,12 @@ export class Bouncer {
     this.publicKey = crypto.createPublicKey(publicPem);
   }
 
+  /**
+   * Creates a new access token.
+   * @param userId The unique ID for a user.
+   * @param expirationDate The date the token should expire.
+   * @returns A dot-separated string containing the base64-encoded token and its base64-encoded signature.
+   */
   createToken(userId: string | number, expirationDate: Date): string {
     const sessionId = this.generateSessionId();
     const expirationTime = expirationDate.getTime();
@@ -33,6 +39,11 @@ export class Bouncer {
     return `${encodedToken}.${signature}`;
   }
 
+  /**
+   * Adds a token to the `TokenStore`'s Deny List.
+   * @param unparsedToken The base64-encoded string returned by `createToken`.
+   * @returns `true` if the token was successfully added to the Deny List, `false` if not.
+   */
   revokeToken(unparsedToken: string): boolean {
     if (!unparsedToken) {
       return false;
@@ -42,6 +53,11 @@ export class Bouncer {
     return this.tokenStore.addToDenyList(decodedToken.sessionId, Date.now());
   }
 
+  /**
+   * Evaluates it a token is valid based on its signature, expiration date, and Deny List status.
+   * @param unparsedToken The string returned from `createToken`.
+   * @returns `true` if the token is valid, `false` if not.
+   */
   validateToken(unparsedToken: Base64String): boolean {
     if (!unparsedToken) {
       return false;
@@ -59,6 +75,12 @@ export class Bouncer {
     return !denied;
   }
 
+  /**
+   * Evaluates a user's attributes against a `RuleSet` to determine if the user meets the criteria for access.
+   * @param userData The data to be evaluated by the `RuleSet`.
+   * @param rules A `RuleSet` instance containing one or more `ValidationRule` and/or `AsyncValidationRule` functions.
+   * @returns A promise resolving to `true` if all rules in the set returned `true`, otherwise `false`.
+   */
   async validateUser<T>(userData: T, rules: Ruleset): Promise<boolean> {
     return (
       rules.evaluateSync(userData) && (await rules.evaluateAsync(userData))
@@ -134,40 +156,83 @@ export class Ruleset {
     this.asyncRules = new Set(asyncRules);
   }
 
+  /**
+   * Adds a synchronous `ValidationRule` to the `RuleSet`.
+   * @param rule The `ValidationRule` to add.
+   * @returns The `RuleSet` instance so you can chain multiple calls.
+   */
   addSyncRule(rule: ValidationRule): Ruleset {
     this.syncRules.add(rule);
     return this;
   }
 
+  /**
+   * Adds an `AsyncValidationRule` to the `RuleSet`.
+   * @param rule The `AsyncValidationRule` to add.
+   * @returns The `RuleSet` instance so you can chain multiple calls.
+   */
   addAsyncRule(rule: AsyncValidationRule): Ruleset {
     this.asyncRules.add(rule);
     return this;
   }
 
+  /**
+   * Checks if the `RuleSet` contains a specific `ValidationRule`.
+   * @param rule The rule to look for.
+   * @returns `true` if present in the `RuleSet`, otherwise `false`.
+   */
   hasSyncRule(rule: ValidationRule): boolean {
     return this.syncRules.has(rule);
   }
 
+  /**
+   * Checks if the `RuleSet` contains a specific `AsyncValidationRule`.
+   * @param rule The rule to look for.
+   * @returns `true` if present in the `RuleSet`, otherwise `false`.
+   */
   hasAsyncRule(rule: AsyncValidationRule): boolean {
     return this.asyncRules.has(rule);
   }
 
+  /**
+   * Deletes a `ValidationRule` from the `RuleSet`.
+   * @param rule The rule to delete.
+   * @returns `true` if value was in the set, `false` if not.
+   */
   deleteSyncRule(rule: ValidationRule): boolean {
     return this.syncRules.delete(rule);
   }
 
+  /**
+   * Deletes an `AsyncValidationRule` from the `RuleSet`.
+   * @param rule The rule to delete.
+   * @returns `true` if value was in the set, `false` if not.
+   */
   deleteAsyncRule(rule: AsyncValidationRule): boolean {
     return this.asyncRules.delete(rule);
   }
 
+  /**
+   * Deletes all `ValidationRule`s from the `RuleSet`.
+   */
   clearSyncRules(): void {
     return this.syncRules.clear();
   }
 
+  /**
+   * Deletes all `AsyncValidationRule`s from the `RuleSet`.
+   */
   clearAsyncRules(): void {
     return this.asyncRules.clear();
   }
 
+  /**
+   * Compares user data against the `RuleSet`'s internal set of `ValidationRule`s.
+   * This normally should not be called directly.
+   * Instead, use `Bouncer`'s `validateUser` method.
+   * @param userData The data to evaluate in the `ValidationRule` functions.
+   * @returns `true` if all `ValidationRule`s returned true, otherwise `false`.
+   */
   evaluateSync<T>(userData: T): boolean {
     for (const rule of this.syncRules) {
       if (!rule(userData)) {
@@ -177,6 +242,14 @@ export class Ruleset {
     return true;
   }
 
+  /**
+   * Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s.
+   * This normally should not be called directly.
+   * Instead, use `Bouncer`'s `validateUser` method.
+   * @param userData The data to evaluate in the `ValidationRule` functions.
+   * @returns A promise resolving to `true` if all `AsyncValidationRule`s returned true,
+   * otherwise `false`.
+   */
   async evaluateAsync<T>(userData: T): Promise<boolean> {
     for (const rule of this.asyncRules) {
       const result = await rule(userData);
