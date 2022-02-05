@@ -151,11 +151,11 @@ const asyncRuleExample = async (user: User): Promise<boolean> => {
   return !!result;
 };
 
-const ruleSet = new RuleSet([syncRuleExample], [asyncRuleExample]);
+let ruleSet = new RuleSet([syncRuleExample], [asyncRuleExample]);
 
 // Or...
 
-const ruleSet = new RuleSet()
+ruleSet = new RuleSet()
   .addSyncRule(syncRuleExample)
   .addAsyncRule(asyncRuleExample);
 
