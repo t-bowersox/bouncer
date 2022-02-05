@@ -24,15 +24,25 @@ In order to create a `Bouncer` instance, you must have the following:
 - A public key string in PEM format.
 - An object that implements the `TokenStore` interface.
 
-Need help generating keys? [This article](https://www.scottbrady91.com/openssl/creating-rsa-keys-using-openssl) provides a good explainer using OpenSSL.
+Need help generating keys? [This article](https://www.scottbrady91.com/openssl/creating-rsa-keys-using-openssl) provides
+a good explainer using OpenSSL.
 
 #### Token signing
 
-The private and public keys are necessary for signing and verifying access tokens. Under the hood, Bouncer uses the Node.js [`crypto.createPrivateKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreateprivatekeykey) and [`crypto.createPublicKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreatepublickeykey) methods to create a `KeyObject` for each.
+The private and public keys are necessary for signing and verifying access tokens. Under the hood, Bouncer uses the
+Node.js [`crypto.createPrivateKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreateprivatekeykey)
+and [`crypto.createPublicKey`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptocreatepublickeykey)
+methods to create a `KeyObject` for each.
 
-Those `KeyObject`s are used with instances of Node's [`Sign`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-sign) and [`Verify`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-verify) classes when signing and verifying access tokens, respectively. The algorithm used for signatures is SHA256.
+Those `KeyObject`s are used with instances of
+Node's [`Sign`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-sign)
+and [`Verify`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#class-verify) classes when signing and
+verifying access tokens, respectively. The algorithm used for signatures is SHA256.
 
-The `Token` interface stores only a unique session ID, the user's ID, and an expiration timestamp. The session ID is generated using Node's [`crypto.randomUUID`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptorandomuuidoptions), which uses a cryptographic pseudorandom number generator.
+The `Token` interface stores only a unique session ID, the user's ID, and an expiration timestamp. The session ID is
+generated using
+Node's [`crypto.randomUUID`](https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html#cryptorandomuuidoptions), which
+uses a cryptographic pseudorandom number generator.
 
 #### Token stores
 
@@ -43,7 +53,8 @@ The `TokenStore` interface requires an object to have two methods that are used 
 
 It is up to you to handle where to store the data, whether it's a key-value store, relational database, etc.
 
-If you want to keep a dataset or log of all tokens issued by Bouncer, you will need to handle that yourself since it's outside the scope of what Bouncer's purpose.
+If you want to keep a dataset or log of all tokens issued by Bouncer, you will need to handle that yourself since it's
+outside the scope of what Bouncer's purpose.
 
 ### Authorization flow
 
@@ -81,7 +92,8 @@ An access token is a dot-separated string that includes:
 - The base64 encoded token.
 - The base64 encoded signature for that token.
 
-For example: `<base64-encoded-token>.<base64-encoded-signature>`. Being base64 encoded, it's suitable for returning to the user in a secure, HTTP-only cookie.
+For example: `<base64-encoded-token>.<base64-encoded-signature>`. Being base64 encoded, it's suitable for returning to
+the user in a secure, HTTP-only cookie.
 
 To create a token, pass the user's ID and an expiration date (as a `Date` object) to the `createToken` method.
 
@@ -91,7 +103,9 @@ const token = bouncer.createToken(1, new Date("2022-02-28 00:00:00"));
 
 #### Revoking an access token
 
-In cases where you need to invalidate a session ID, you can call the `revokeToken` method. This will add the session ID to Bouncer's Deny List, which is a store of all revoked tokens. Bouncer checks this list during the token validation process.
+In cases where you need to invalidate a session ID, you can call the `revokeToken` method. This will add the session ID
+to Bouncer's Deny List, which is a store of all revoked tokens. Bouncer checks this list during the token validation
+process.
 
 To add a token to the Deny List, pass it to `revokeToken`. It will return `true` if it was successful, `false` if not.
 
@@ -103,13 +117,15 @@ const revoked = bouncer.revokeToken(
 
 #### Validating a token
 
-To validate a token, simply pass it to the `validateToken` method. Bouncer will return a boolean response based on the following criteria:
+To validate a token, simply pass it to the `validateToken` method. Bouncer will return a boolean response based on the
+following criteria:
 
 1. Is the token's signature verified? If so, then check:
 2. Has the token expired? If not, then check:
 3. Is the token on the Deny List? If not, return `true`.
 
-Otherwise, Bouncer returns `false` indicating the token is invalid. That's a signal to your app to deny access to that user.
+Otherwise, Bouncer returns `false` indicating the token is invalid. That's a signal to your app to deny access to that
+user.
 
 ```typescript
 const validated = bouncer.validateToken(
@@ -119,18 +135,24 @@ const validated = bouncer.validateToken(
 
 #### Validating a user
 
-Bouncer's `validateUser` method allows you to compare a user's attributes to a `RuleSet` of validator functions. Each of the functions you add to a `RuleSet` take a value and, based on your criteria, returns a boolean: `true` if validated, `false` if not.
+Bouncer's `validateUser` method allows you to compare a user's attributes to a `RuleSet` of validator functions. Each of
+the functions you add to a `RuleSet` take a value and, based on your criteria, returns a boolean: `true` if
+validated, `false` if not.
 
-Each `RuleSet` keeps two internal sets of functions: one for synchronous functions and the other for async functions. All functions in the sets must return true in order for Bouncer's `validateUser` method to return `true`. If just one returns `false`, then so will `validateUser`.
+Each `RuleSet` keeps two internal sets of functions: one for synchronous functions and the other for async functions.
+All functions in the sets must return true in order for Bouncer's `validateUser` method to return `true`. If just one
+returns `false`, then so will `validateUser`.
 
 ```typescript
 type ValidationRule<T = any> = (userData: T) => boolean;
 type AsyncValidationRule<T = any> = (userData: T) => Promise<boolean>;
 ```
 
-To avoid unnecessary async calls, Bouncer will first evaluate the synchronous validators if present. Only if all of those return `true` will it proceed to the async validators.
+To avoid unnecessary async calls, Bouncer will first evaluate the synchronous validators if present. Only if all of
+those return `true` will it proceed to the async validators.
 
-You can create as many instances of the `RuleSet` class as you need for your application. For example, you could have `RuleSet`s for different user types, different application routes, etc.
+You can create as many instances of the `RuleSet` class as you need for your application. For example, you could
+have `RuleSet`s for different user types, different application routes, etc.
 
 ```typescript
 import { Bouncer, RuleSet } from "@t-bowersox/bouncer";
@@ -183,7 +205,8 @@ class Bouncer {
 
 Parameters:
 
-- `tokenStore`: an object implementing the `TokenStore` interface, used for adding to and checking the Deny List of tokens.
+- `tokenStore`: an object implementing the `TokenStore` interface, used for adding to and checking the Deny List of
+  tokens.
 - `privatePem`: a string containing a private key in PEM format, used for signing tokens.
 - `publicPem`: a string containing the correspondnig public key in PEM format, used for verifying tokens.
 - `passphrase`: if the private key was encrypted with a passphrase, pass it to this parameter.
@@ -205,7 +228,8 @@ Parameters:
 
 Returns:
 
-- A dot-separated string containing the base64-encoded token and its base64-encoded signature (i.e. `<base64-encoded-token>.<base64-encoded-signature>`)
+- A dot-separated string containing the base64-encoded token and its base64-encoded signature (
+  i.e. `<base64-encoded-token>.<base64-encoded-signature>`)
 
 #### Method `revokeToken`
 
@@ -264,11 +288,13 @@ Returns:
 
 ### Interface `TokenStore`
 
-Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check for the existance of a token in that database.
+Contains methods used by Bouncer to add revoked tokens to a database (referred to as the Deny List), as well as check
+for the existance of a token in that database.
 
 ```typescript
 interface TokenStore {
   addToDenyList(sessionId: string, timestamp: number): boolean;
+
   isOnDenyList(sessionId: string): boolean;
 }
 ```
@@ -464,7 +490,8 @@ class RuleSet {
 
 #### Method `evaluateSync`
 
-Compares user data against the `RuleSet`'s internal set of `ValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
+Compares user data against the `RuleSet`'s internal set of `ValidationRule`s. This normally should not be called
+directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
 class RuleSet {
@@ -482,7 +509,8 @@ Returns:
 
 #### Method `evaluateAsync`
 
-Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s. This normally should not be called directly. Instead, use `Bouncer`'s `validateUser` method.
+Compares user data against the `RuleSet`'s internal set of `AsyncValidationRule`s. This normally should not be called
+directly. Instead, use `Bouncer`'s `validateUser` method.
 
 ```typescript
 class RuleSet {
@@ -532,7 +560,8 @@ Returns:
 
 ## Contributing
 
-This is primarily a package that I intend to reuse in my own projects. I've decided to open source it in case there are other folks who might also find it useful.
+This is primarily a package that I intend to reuse in my own projects. I've decided to open source it in case there are
+other folks who might also find it useful.
 
 With that in mind, I only expect to make changes to Container that jibe with how I intend to use it myself.
 
