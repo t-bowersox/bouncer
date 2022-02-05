@@ -1,4 +1,4 @@
-import { Bouncer, Ruleset, Token } from "./index";
+import { Bouncer, BouncerError, Ruleset, Token } from "./index";
 import { jest } from "@jest/globals";
 import * as crypto from "crypto";
 import { Base64 } from "@t-bowersox/base64";
@@ -45,6 +45,18 @@ describe("Bouncer", () => {
       expect(await bouncer.createToken(1, new Date(expirationDate))).toBe(
         `${Base64.encode(jsonToken)}.signature`
       );
+    });
+
+    test("should throw #BouncerError if unable to save token", async () => {
+      const expirationDate = "2022-02-02 20:00:00";
+      cryptoMock.randomUUID.mockReturnValue(uuid);
+      storeTokenData.mockResolvedValue(false);
+
+      const errorCondition = async () => {
+        return bouncer.createToken(1, new Date(expirationDate));
+      };
+
+      await expect(errorCondition()).rejects.toThrowError(BouncerError);
     });
   });
 
